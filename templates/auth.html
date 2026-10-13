@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}{{ 'Log In' if mode == 'login' else 'Sign Up' }} · F1 Session Viewer{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-[#0B0E14] flex flex-col items-center justify-center p-6">
+  {{ ui.grid_texture() }}
+
+  <div class="relative w-full max-w-sm flex flex-col gap-6">
+    {{ ui.back_link(url_for('home'), 'Back to Home') }}
+
+    <!-- Wordmark -->
+    <div class="text-center">
+      <div class="inline-flex items-center gap-2 mb-3">
+        {{ ui.wordmark_dot() }}
+        <span class="font-display font-semibold text-xs uppercase tracking-[0.2em] text-[#8A95A3]">F1 Session Viewer</span>
+      </div>
+      <h1 class="font-display font-bold text-4xl tracking-tight text-[#F0F2F5] leading-none">
+        {{ 'Welcome back' if mode == 'login' else 'Create account' }}
+      </h1>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="flex bg-[#141920] border border-[rgba(255,255,255,0.08)] rounded-lg p-1">
+      {% for m, label, href in [('login', 'Log In', url_for('login')), ('signup', 'Sign Up', url_for('signup'))] %}
+      <a href="{{ href }}" class="flex-1 py-2 rounded-md text-center font-display font-semibold text-sm uppercase tracking-wide transition-all duration-150 {{ 'bg-[#1C2330] text-[#F0F2F5] shadow-sm' if mode == m else 'text-[#8A95A3] hover:text-[#F0F2F5]' }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+
+    {% call ui.card('p-6') %}
+      {% if mode == 'login' and step == '2fa' %}
+      <form method="post" action="{{ url_for('login_verify') }}" class="flex flex-col gap-5" novalidate>
+        <div class="flex flex-col gap-1">
+          <p class="text-[#F0F2F5] font-medium text-sm">Two-factor authentication</p>
+          <p class="text-[#8A95A3] text-xs leading-relaxed">
+            Enter the 6-digit code from your authenticator app for
+            <span class="text-[#F0F2F5]">{{ email }}</span>.
+          </p>
+        </div>
+        {{ ui.otp_input(errors.otp) }}
+        {{ ui.button('Verify & Sign In', cls='w-full', loading='Verifying…') }}
+        <a href="{{ url_for('login') }}" class="text-xs text-[#8A95A3] hover:text-[#F0F2F5] text-center transition-colors duration-150">← Back to credentials</a>
+      </form>
+
+      {% elif mode == 'login' %}
+      <form method="post" action="{{ url_for('login') }}" class="flex flex-col gap-5" novalidate>
+        {{ ui.text_input('Email', 'email', 'email', 'you@example.com', email, errors.email, 'email') }}
+        {{ ui.text_input('Password', 'password', 'password', '••••••••', '', errors.password, 'current-password') }}
+        {{ ui.button('Continue', cls='w-full', loading='Checking…') }}
+      </form>
+
+      {% else %}
+      <form method="post" action="{{ url_for('signup') }}" class="flex flex-col gap-5" novalidate>
+        {{ ui.text_input('Email', 'email', 'email', 'you@example.com', email, errors.email, 'email') }}
+        {{ ui.text_input('Password', 'password', 'password', 'Min. 8 characters', '', errors.password, 'new-password') }}
+        {{ ui.text_input('Confirm Password', 'confirm', 'password', '••••••••', '', errors.confirm, 'new-password') }}
+        {{ ui.button('Create Account', cls='w-full', loading='Creating account…') }}
+      </form>
+      {% endif %}
+    {% endcall %}
+  </div>
+</div>
+{% endblock %}

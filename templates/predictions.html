@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}My Predictions · F1 Session Viewer{% endblock %}
+
+{% block body %}
+{% set medals = ['🥇', '🥈', '🥉'] %}
+{% set places = ['1st', '2nd', '3rd'] %}
+<div class="min-h-screen bg-[#0B0E14] px-4 py-8 md:px-8 md:py-10">
+  <div class="max-w-2xl mx-auto flex flex-col gap-6">
+
+    <!-- Header -->
+    <div class="flex flex-col gap-3">
+      {{ ui.back_link(url_for('home'), 'Back') }}
+
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#E8002D]"></span>
+            <span class="font-display text-xs font-semibold uppercase tracking-[0.18em] text-[#E8002D]">Predictions</span>
+          </div>
+          <h1 class="font-display font-bold text-4xl md:text-5xl text-[#F0F2F5] leading-none tracking-tight">My Predictions</h1>
+          <p class="text-[#8A95A3] text-sm mt-1">{{ user.name }}</p>
+        </div>
+
+        <!-- Points total -->
+        <div class="flex flex-col items-end">
+          <span class="font-mono text-3xl font-medium text-[#F0F2F5]">{{ total_points }}</span>
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455]">Total pts</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upcoming GP — Predict the Podium -->
+    {% call ui.card() %}
+      <div class="px-5 py-4 border-b border-[rgba(255,255,255,0.08)] flex items-center justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455] mb-0.5">Next Race</p>
+          <h2 class="font-display font-semibold text-lg uppercase tracking-wide text-[#F0F2F5]">Singapore Grand Prix 2026</h2>
+        </div>
+        {{ ui.badge('open') }}
+      </div>
+
+      <div class="p-5">
+        {% if submitted %}
+        <div class="flex flex-col gap-4">
+          <div class="flex items-start gap-3 rounded-lg bg-[#0D1F14] border border-[rgba(34,197,94,0.2)] p-4">
+            <svg class="shrink-0 mt-0.5" width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="7" stroke="#22c55e" stroke-width="1.4" />
+              <path d="M6 9l2 2 4-4" stroke="#22c55e" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <div>
+              <p class="text-[#4ade80] text-sm font-medium">Prediction submitted!</p>
+              <p class="text-[#8A95A3] text-xs mt-0.5">Your podium pick for the Singapore Grand Prix has been saved.</p>
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            {% for pick in picks %}
+            {% set d = DRIVERS_BY_NAME.get(pick) %}
+            <div class="flex items-center gap-3 px-1">
+              <span class="text-base">{{ medals[loop.index0] }}</span>
+              <span class="w-2 h-2 rounded-full shrink-0" style="background: {{ d.colour if d else '#3A4455' }}"></span>
+              <span class="text-sm text-[#F0F2F5]">{{ pick }}</span>
+              <span class="text-xs text-[#3A4455]">{{ d.team if d }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <a href="{{ url_for('predictions', edit=1) }}" class="text-xs text-[#8A95A3] hover:text-[#F0F2F5] underline underline-offset-2 text-left transition-colors duration-150 w-fit">Edit prediction</a>
+        </div>
+
+        {% else %}
+        <form method="post" class="flex flex-col gap-5">
+          <p class="text-[#8A95A3] text-sm">Predict the podium for the Singapore Grand Prix. Closes at race start.</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="podium">
+            {% for label, color in [('🥇 1st Place', '#fbbf24'), ('🥈 2nd Place', '#94a3b8'), ('🥉 3rd Place', '#f97316')] %}
+            {% call ui.dropdown(label, 'p' ~ loop.index, 'p' ~ loop.index, driver_options, picks[loop.index0], 'Select driver', label_color=color) %}
+            <div class="flex items-center gap-1.5 px-1" data-hint hidden>
+              <span class="w-2 h-2 rounded-full shrink-0"></span>
+              <span class="text-[10px] text-[#8A95A3] truncate"></span>
+            </div>
+            {% endcall %}
+            {% endfor %}
+          </div>
+
+          {% if error %}<p class="text-xs text-[#E8002D]">{{ error }}</p>{% endif %}
+
+          {{ ui.button('Submit Prediction', cls='w-full sm:w-auto sm:self-start', loading='Submitting…') }}
+        </form>
+        {% endif %}
+      </div>
+    {% endcall %}
+
+    <!-- Past predictions -->
+    {% call ui.card() %}
+      <div class="px-5 py-4 border-b border-[rgba(255,255,255,0.08)]">
+        <h2 class="font-display font-semibold text-lg uppercase tracking-wide text-[#F0F2F5]">Past Predictions</h2>
+      </div>
+
+      <div class="divide-y divide-[rgba(255,255,255,0.05)]">
+        {% for pred in history %}
+        <div class="px-5 py-4 hover:bg-white/[0.02] transition-colors duration-100">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <p class="text-[#F0F2F5] font-medium text-sm leading-snug">{{ pred.grand_prix }}</p>
+              <p class="font-mono text-[10px] text-[#3A4455] mt-0.5">{{ pred.year }}</p>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              {% if pred.points is not none %}
+              <span class="font-mono text-sm font-medium text-[#F0F2F5]">+{{ pred.points }} <span class="text-[10px] text-[#3A4455] uppercase tracking-wide">pts</span></span>
+              {% endif %}
+              {{ ui.badge(pred.status) }}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            {% for pick in pred.picks %}
+            {% set i = loop.index0 %}
+            {% set driver = DRIVERS_BY_NAME.get(pick) %}
+            {% set actual = pred.actual[i] if pred.actual else none %}
+            {% set actual_driver = DRIVERS_BY_NAME.get(actual) if actual else none %}
+            {% set match = actual == pick %}
+            <div class="flex flex-col gap-1.5">
+              <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455]">{{ places[i] }}</span>
+              <!-- Pick -->
+              <div class="flex items-center gap-1.5 rounded-md px-2 py-1.5 border {{ ('bg-[rgba(34,197,94,0.06)] border-[rgba(34,197,94,0.15)]' if match else 'bg-[rgba(232,0,45,0.04)] border-[rgba(232,0,45,0.1)]') if actual else 'bg-[#1C2330] border-[rgba(255,255,255,0.06)]' }}">
+                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background: {{ driver.colour if driver else '#3A4455' }}"></span>
+                <span class="text-xs text-[#F0F2F5] truncate leading-tight">{{ pick.split(' ')[-1] }}</span>
+                {% if actual and match %}
+                <svg class="shrink-0 ml-auto" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                {% elif actual %}
+                <svg class="shrink-0 ml-auto" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#E8002D" stroke-width="1.5" stroke-linecap="round" /></svg>
+                {% endif %}
+              </div>
+              <!-- Actual (if different) -->
+              {% if actual and not match and actual_driver %}
+              <div class="flex items-center gap-1.5 px-2">
+                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background: {{ actual_driver.colour }}"></span>
+                <span class="text-[10px] text-[#8A95A3] truncate">{{ actual.split(' ')[-1] }}</span>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endcall %}
+
+  </div>
+</div>
+<script id="drivers" type="application/json">{{ drivers|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='predictions.js') }}"></script>
+{% endblock %}

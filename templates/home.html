@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block body %}
+{% set nav_btn = "font-display font-semibold text-xs uppercase tracking-wide px-3 py-2 rounded-lg transition-all duration-150" %}
+<div class="min-h-screen bg-[#0B0E14] flex flex-col items-center justify-center p-6">
+  <!-- Top-right auth nav -->
+  <div class="fixed top-0 right-0 p-4 flex items-center gap-1 z-20">
+    {% if user %}
+      <span class="text-[#8A95A3] text-xs mr-2 hidden sm:block truncate max-w-[140px]">{{ user.name }}</span>
+      <a href="{{ url_for('predictions') }}" class="{{ nav_btn }} text-[#F0F2F5] hover:text-[#E8002D] hover:bg-white/5">My Predictions</a>
+      <span class="text-[#3A4455] text-xs">·</span>
+      <form method="post" action="{{ url_for('logout') }}" class="contents">
+        <button type="submit" class="{{ nav_btn }} text-[#8A95A3] hover:text-[#F0F2F5] hover:bg-white/5 cursor-pointer">Sign Out</button>
+      </form>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="{{ nav_btn }} text-[#8A95A3] hover:text-[#F0F2F5] hover:bg-white/5">Log In</a>
+      <span class="text-[#3A4455] text-xs">·</span>
+      <a href="{{ url_for('signup') }}" class="{{ nav_btn }} text-[#E8002D] hover:text-[#ff1a3d] hover:bg-[#E8002D]/5">Sign Up</a>
+    {% endif %}
+  </div>
+
+  {{ ui.grid_texture() }}
+
+  <div class="relative w-full max-w-sm flex flex-col gap-8">
+    <!-- Wordmark -->
+    <div class="text-center">
+      <div class="inline-flex items-center gap-2 mb-6">
+        {{ ui.wordmark_dot() }}
+        <span class="font-display font-semibold text-xs uppercase tracking-[0.2em] text-[#8A95A3]">OpenF1</span>
+      </div>
+      <h1 class="font-display font-bold text-5xl tracking-tight text-[#F0F2F5] leading-none mb-3">
+        F1 Session
+        <br />
+        <span class="text-[#E8002D]">Viewer</span>
+      </h1>
+      <p class="text-[#8A95A3] text-sm leading-relaxed">Browse historical race results and lap data from Formula 1.</p>
+    </div>
+
+    <!-- Selector card -->
+    {% call ui.card('p-6') %}
+    <form id="home-form" class="flex flex-col gap-5">
+      {{ ui.dropdown('Year', 'year', options=year_options, placeholder='Select year') }}
+
+      <div class="relative">
+        {{ ui.dropdown('Grand Prix', 'meeting', placeholder='Select a year first', disabled=True) }}
+        <div id="meetings-spinner" hidden class="absolute right-10 top-[2.35rem]">{{ ui.spinner(16) }}</div>
+      </div>
+
+      <p id="meetings-error" hidden class="text-xs text-[#E8002D] -mt-2">
+        <span></span> — <button type="button" class="underline underline-offset-2 cursor-pointer">retry</button>
+      </p>
+      <p id="submit-error" hidden class="text-xs text-[#E8002D] -mt-2"></p>
+
+      {{ ui.button('View Results', id='submit', cls='w-full mt-1', disabled=True) }}
+    </form>
+    {% endcall %}
+
+    <p class="text-center text-[10px] text-[#3A4455] tracking-wide uppercase">Data via OpenF1 · Read-only</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='home.js') }}"></script>
+{% endblock %}

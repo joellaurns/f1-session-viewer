@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+
+{% block title %}{{ meeting.meeting_name }} {{ meeting.year }} · F1 Session Viewer{% endblock %}
+
+{% block body %}
+<div class="min-h-screen bg-[#0B0E14] px-4 py-8 md:px-8 md:py-10">
+  <div class="max-w-3xl mx-auto flex flex-col gap-6">
+
+    <!-- Header -->
+    <div class="flex flex-col gap-3">
+      {{ ui.back_link(url_for('home'), 'Back') }}
+
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#E8002D]"></span>
+          <span class="font-display text-xs font-semibold uppercase tracking-[0.18em] text-[#E8002D]">{{ race.session_name }}</span>
+        </div>
+        <h1 class="font-display font-bold text-4xl md:text-5xl text-[#F0F2F5] leading-none tracking-tight">{{ meeting.meeting_name }}</h1>
+        <p class="text-[#8A95A3] text-sm mt-1 font-mono">{{ meeting.year }}</p>
+      </div>
+    </div>
+
+    <div id="results" data-url="{{ url_for('api_results', session_key=race.session_key) }}" class="contents">
+      <!-- Results table -->
+      {% call ui.card() %}
+        <div class="px-5 py-4 border-b border-[rgba(255,255,255,0.08)]">
+          <h2 class="font-display font-semibold text-lg uppercase tracking-wide text-[#F0F2F5]">Race Results</h2>
+        </div>
+
+        <div id="results-table">
+          <div class="grid grid-cols-[3rem_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-[rgba(255,255,255,0.08)]">
+            <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455] text-right">POS</span>
+            <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455]">Driver</span>
+            <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455] hidden sm:block">Team</span>
+            <span class="text-[10px] font-semibold uppercase tracking-widest text-[#3A4455]">Best Lap</span>
+          </div>
+          {% for _ in range(10) %}
+          <div class="grid grid-cols-[3rem_1fr_1fr_auto] items-center gap-4 px-5 py-3.5 border-b border-[rgba(255,255,255,0.05)] last:border-0">
+            <div class="h-4 w-6 ml-auto bg-[#1C2330] rounded animate-pulse"></div>
+            <div class="h-4 w-32 bg-[#1C2330] rounded animate-pulse"></div>
+            <div class="h-4 w-24 bg-[#1C2330] rounded animate-pulse hidden sm:block"></div>
+            <div class="h-4 w-20 bg-[#1C2330] rounded animate-pulse"></div>
+          </div>
+          {% endfor %}
+        </div>
+      {% endcall %}
+
+      <!-- Lap times chart (replaced by the chart once loaded) -->
+      <div id="chart-slot" class="contents">
+        {% call ui.card('p-5 flex flex-col gap-4') %}
+          <h2 class="font-display font-semibold text-lg uppercase tracking-wide text-[#F0F2F5]">Lap Times — Top 5</h2>
+          <div class="h-64 flex items-center justify-center gap-3 text-[#8A95A3] text-sm">
+            {{ ui.spinner(20) }}
+            Loading lap data…
+          </div>
+        {% endcall %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='results.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{# Shared UI pieces. Usage: {% import "_ui.html" as ui %} #}
+
+{% macro spinner(size=24) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" class="animate-spin text-[#E8002D]"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-opacity="0.15" /><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+{%- endmacro %}
+
+{% macro grid_texture() -%}
+<div class="pointer-events-none fixed inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px); background-size: 40px 40px;"></div>
+{%- endmacro %}
+
+{% macro back_link(href, text) -%}
+<a href="{{ href }}" class="inline-flex items-center gap-1.5 text-[#8A95A3] hover:text-[#F0F2F5] text-sm transition-colors duration-150 w-fit">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+  {{ text }}
+</a>
+{%- endmacro %}
+
+{% macro button(label, variant='primary', type='submit', cls='', loading='', id='', disabled=False) -%}
+<button type="{{ type }}"{% if id %} id="{{ id }}"{% endif %}{% if loading %} data-loading="{{ loading }}"{% endif %}{% if disabled %} disabled{% endif %}
+  class="inline-flex items-center justify-center gap-2 font-display font-semibold tracking-wide uppercase text-sm transition-all duration-150 rounded-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8002D]
+  {{ 'bg-[#E8002D] text-white px-6 py-3 hover:bg-[#ff1a3d] active:scale-[0.97] shadow-lg shadow-[#E8002D]/20' if variant == 'primary' else 'text-[#8A95A3] hover:text-[#F0F2F5] px-3 py-2 hover:bg-white/5 active:scale-[0.97]' }} {{ cls }}">{{ label }}</button>
+{%- endmacro %}
+
+{% macro dropdown(label, id, name='', options=[], value='', placeholder='', disabled=False, label_color='') -%}
+<div class="flex flex-col gap-1.5">
+  <label for="{{ id }}" class="text-xs font-semibold uppercase tracking-widest {{ '' if label_color else 'text-[#8A95A3]' }}"{% if label_color %} style="color: {{ label_color }}"{% endif %}>{{ label }}</label>
+  <div class="relative">
+    <select id="{{ id }}"{% if name %} name="{{ name }}"{% endif %}{% if disabled %} disabled{% endif %}
+      class="w-full appearance-none bg-[#1C2330] border border-[rgba(255,255,255,0.08)] text-[#F0F2F5] font-sans text-sm rounded-lg px-4 py-3 pr-10 cursor-pointer transition-colors duration-150 hover:border-[rgba(255,255,255,0.18)] focus:border-[#E8002D] focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed">
+      <option value="" disabled{% if not value %} selected{% endif %}>{{ placeholder }}</option>
+      {% for o in options %}
+      <option value="{{ o.value }}" class="bg-[#1C2330]"{% if o.value == value %} selected{% endif %}>{{ o.label }}</option>
+      {% endfor %}
+    </select>
+    <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8A95A3]">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </div>
+  </div>
+  {{ caller() if caller }}
+</div>
+{%- endmacro %}
+
+{% macro text_input(label, name, type='text', placeholder='', value='', error='', autocomplete='') -%}
+<div class="flex flex-col gap-1.5">
+  <label for="{{ name }}" class="text-xs font-semibold uppercase tracking-widest text-[#8A95A3]">{{ label }}</label>
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" placeholder="{{ placeholder }}" value="{{ value }}"{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}
+    class="w-full bg-[#1C2330] border text-[#F0F2F5] font-sans text-sm rounded-lg px-4 py-3 transition-colors duration-150 placeholder:text-[#3A4455] focus:outline-none focus:border-[#E8002D] disabled:opacity-40 disabled:cursor-not-allowed {{ 'border-[#E8002D]/60' if error else 'border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.18)]' }}" />
+  {% if error %}<p class="text-[10px] text-[#E8002D] leading-snug">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro otp_input(error='') -%}
+<div class="flex flex-col gap-1.5">
+  <label for="otp" class="text-xs font-semibold uppercase tracking-widest text-[#8A95A3]">Verification Code</label>
+  <div class="relative" data-otp>
+    <input id="otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" autofocus class="absolute inset-0 opacity-0 cursor-text z-10" />
+    <div class="flex gap-2 pointer-events-none" data-otp-boxes></div>
+  </div>
+  {% if error %}<p class="text-[10px] text-[#E8002D] leading-snug">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro card(cls='') -%}
+<div class="bg-[#141920] border border-[rgba(255,255,255,0.08)] rounded-lg {{ cls }}">{{ caller() }}</div>
+{%- endmacro %}
+
+{% macro badge(variant, label='') -%}
+{% set b = BADGES[variant] %}
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] font-medium uppercase tracking-widest" style="color: {{ b[2] }}; background: {{ b[3] }}; border: 1px solid {{ b[4] }}">
+  <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background: {{ b[1] }}"></span>
+  {{ label or b[0] }}
+</span>
+{%- endmacro %}
+
+{% macro wordmark_dot() -%}
+<span class="w-2 h-2 rounded-full bg-[#E8002D] shadow-[0_0_8px_#E8002D]"></span>
+{%- endmacro %}
