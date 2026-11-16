@@ -40,13 +40,31 @@
 </div>
 {%- endmacro %}
 
-{% macro text_input(label, name, type='text', placeholder='', value='', error='', autocomplete='') -%}
+{% macro text_input(label, name, type='text', placeholder='', value='', error='', autocomplete='', maxlength='', hint='') -%}
 <div class="flex flex-col gap-1.5">
   <label for="{{ name }}" class="text-xs font-semibold uppercase tracking-widest text-[#8A95A3]">{{ label }}</label>
-  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" placeholder="{{ placeholder }}" value="{{ value }}"{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" placeholder="{{ placeholder }}" value="{{ value }}"{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if autocomplete %} autocomplete="{{ autocomplete }}"{% endif %}
     class="w-full bg-[#1C2330] border text-[#F0F2F5] font-sans text-sm rounded-lg px-4 py-3 transition-colors duration-150 placeholder:text-[#3A4455] focus:outline-none focus:border-[#E8002D] disabled:opacity-40 disabled:cursor-not-allowed {{ 'border-[#E8002D]/60' if error else 'border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.18)]' }}" />
-  {% if error %}<p class="text-[10px] text-[#E8002D] leading-snug">{{ error }}</p>{% endif %}
+  {% if hint %}<p class="text-[10px] text-[#8A95A3] leading-snug">{{ hint }}</p>{% endif %}
+  {% if error %}
+    {% if error is string %}
+    <p class="text-[10px] text-[#E8002D] leading-snug">{{ error }}</p>
+    {% else %}
+    <ul class="flex flex-col gap-0.5 text-[10px] text-[#E8002D] leading-snug">
+      {% for e in error %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  {% endif %}
 </div>
+{%- endmacro %}
+
+{% macro password_rules() -%}
+<ul data-password-rules class="flex flex-col gap-0.5 text-[10px] text-[#8A95A3] leading-snug -mt-2">
+  <li data-rule="length">At least 8 characters (up to 128)</li>
+  <li data-rule="upper">One uppercase letter</li>
+  <li data-rule="lower">One lowercase letter</li>
+  <li data-rule="number">One number</li>
+</ul>
 {%- endmacro %}
 
 {% macro otp_input(error='') -%}

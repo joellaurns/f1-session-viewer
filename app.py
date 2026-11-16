@@ -6,8 +6,15 @@ from functools import wraps
 import requests
 from flask import Flask, abort, jsonify, make_response, redirect, render_template, request, session, url_for
 
+import auth
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-secret-change-me")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE") == "1",
+)
 
 OPENF1 = "https://api.openf1.org/v1"
 YEARS = ["2025", "2024", "2023", "2022"]
@@ -178,63 +185,156 @@ def api_results(session_key):
     return get_results(session_key)
 
 
-# ── Auth (demo only: any well-formed email/password/code is accepted) ─────────
+# ── Auth ──────────────────────────────────────────────────────────────────────
+# Accounts are in memory for now (auth.py): accounts and password checks are
+# scaffolding, but the password policy and the TOTP second factor are real and
+# work with Microsoft Authenticator.
 
 def display_name(email):
     return re.sub(r"\b\w", lambda m: m.group().upper(), email.split("@")[0].replace(".", " ").replace("_", " "))
 
 
-def log_in(email):
-    session.pop("pending_email", None)
-    session["user"] = {"name": display_name(email), "email": email}
+def log_in(user):
+    session.clear()
+    session["user"] = {"id": user["id"], "name": display_name(user["email"]), "email": user["email"]}
     return redirect(url_for("home"))
+
+
+def lockout_message(user):
+    remaining = auth.lockout_remaining(user)
+    if not remaining:
+        return ""
+    minutes = max(1, (remaining + 59) // 60)
+    return f"Too many failed attempts. Try again in about {minutes} minute{'s' if minutes != 1 else ''}."
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     errors, email = {}, request.form.get("email", "").strip()
     if request.method == "POST":
+        email = auth.normalize_email(email)
         password = request.form.get("password", "")
-        if "@" not in email:
+        user = auth.get_user_by_email(email)
+
+        if not auth.valid_email(email):
             errors["email"] = "Enter a valid email address."
-        if len(password) < 6:
-            errors["password"] = "Password must be at least 6 characters."
+        if not password:
+            errors["password"] = "Enter your password."
         if not errors:
-            session["pending_email"] = email
-            return redirect(url_for("login_verify"))
-    session.pop("pending_email", None)
+            if user and auth.lockout_remaining(user):
+                errors["password"] = lockout_message(user)
+            elif user and auth.verify_password(user, password):
+                if user["mfa_enabled"]:
+                    session.pop("pending_signup", None)
+                    session["pending_user_id"] = user["id"]
+                    return redirect(url_for("login_verify"))
+                auth.clear_failures(user["id"])
+                return log_in(user)
+            else:
+                if not user:
+                    auth.burn_password_check(password)
+                else:
+                    auth.record_failure(user)
+                errors["password"] = "Invalid email or password."
+    session.pop("pending_user_id", None)
     return render_template("auth.html", mode="login", step="credentials", email=email, errors=errors)
 
 
 @app.route("/login/verify", methods=["GET", "POST"])
 def login_verify():
-    email = session.get("pending_email")
-    if not email:
+    user = auth.get_user(session.get("pending_user_id"))
+    if not user or not user["mfa_enabled"]:
+        session.pop("pending_user_id", None)
         return redirect(url_for("login"))
+
     errors = {}
     if request.method == "POST":
-        otp = re.sub(r"\D", "", request.form.get("otp", ""))
-        if len(otp) < 6:
-            errors["otp"] = "Enter the 6-digit code."
+        if auth.lockout_remaining(user):
+            errors["otp"] = lockout_message(user)
         else:
-            return log_in(email)
-    return render_template("auth.html", mode="login", step="2fa", email=email, errors=errors)
+            counter = auth.verify_totp(user["totp_secret"], request.form.get("otp", ""))
+            if counter is None:
+                auth.record_failure(user)
+                errors["otp"] = "That code didn't work. Check Microsoft Authenticator and try again."
+            elif counter <= user["last_totp_counter"]:
+                auth.record_failure(user)
+                errors["otp"] = "That code was already used. Wait for the next code."
+            else:
+                auth.clear_failures(user)
+                auth.mark_totp_counter(user, counter)
+                session.pop("pending_user_id", None)
+                return log_in(user)
+    return render_template("auth.html", mode="login", step="2fa", email=user["email"], errors=errors)
 
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     errors, email = {}, request.form.get("email", "").strip()
     if request.method == "POST":
+        email = auth.normalize_email(email)
         password, confirm = request.form.get("password", ""), request.form.get("confirm", "")
-        if "@" not in email:
+
+        if not auth.valid_email(email):
             errors["email"] = "Enter a valid email address."
-        if len(password) < 8:
-            errors["password"] = "Password must be at least 8 characters."
-        if confirm != password:
+        elif auth.get_user_by_email(email):
+            errors["email"] = "An account with this email already exists."
+        # Enrolling an authenticator is part of this flow, so the 8-character
+        # minimum (rather than the 15-character no-MFA minimum) applies.
+        password_errors = auth.password_policy_errors(password, mfa_enabled=True, email=email)
+        if password_errors:
+            errors["password"] = password_errors
+        elif confirm != password:
             errors["confirm"] = "Passwords do not match."
+
         if not errors:
-            return log_in(email)
+            token, _ = auth.start_pending_signup(email, password)
+            session["pending_signup"] = token
+            return redirect(url_for("signup_verify"))
+    session.pop("pending_signup", None)
     return render_template("auth.html", mode="signup", step="credentials", email=email, errors=errors)
+
+
+@app.route("/signup/verify", methods=["GET", "POST"])
+def signup_verify():
+    token = session.get("pending_signup")
+    pending = auth.get_pending_signup(token)
+    if not pending:
+        session.pop("pending_signup", None)
+        return redirect(url_for("signup"))
+
+    errors = {}
+    if request.method == "POST":
+        if request.form.get("restart"):
+            auth.pop_pending_signup(token)
+            session.pop("pending_signup", None)
+            return redirect(url_for("signup"))
+
+        counter = auth.verify_totp(pending["secret"], request.form.get("otp", ""))
+        if counter is None:
+            errors["otp"] = "That code didn't work. Check Microsoft Authenticator and try again."
+        else:
+            try:
+                user = auth.create_user(pending["email"], pending["password"], pending["secret"])
+            except auth.EmailTaken:
+                auth.pop_pending_signup(token)
+                session.pop("pending_signup", None)
+                return redirect(url_for("signup"))
+            auth.mark_totp_counter(user, counter)
+            auth.pop_pending_signup(token)
+            session.pop("pending_signup", None)
+            return log_in(user)
+
+    uri = auth.provisioning_uri(pending["email"], pending["secret"])
+    return render_template(
+        "auth.html",
+        mode="signup",
+        step="2fa",
+        email=pending["email"],
+        errors=errors,
+        otpauth_uri=uri,
+        secret=auth.format_secret(pending["secret"]),
+        qr_data=auth.qr_data_uri(uri),
+    )
 
 
 @app.post("/logout")

@@ -29,12 +29,12 @@
     </div>
 
     {% call ui.card('p-6') %}
-      {% if mode == 'login' and step == '2fa' %}
+      {% if step == '2fa' and mode == 'login' %}
       <form method="post" action="{{ url_for('login_verify') }}" class="flex flex-col gap-5" novalidate>
         <div class="flex flex-col gap-1">
           <p class="text-[#F0F2F5] font-medium text-sm">Two-factor authentication</p>
           <p class="text-[#8A95A3] text-xs leading-relaxed">
-            Enter the 6-digit code from your authenticator app for
+            Enter the 6-digit code from Microsoft Authenticator for
             <span class="text-[#F0F2F5]">{{ email }}</span>.
           </p>
         </div>
@@ -43,18 +43,41 @@
         <a href="{{ url_for('login') }}" class="text-xs text-[#8A95A3] hover:text-[#F0F2F5] text-center transition-colors duration-150">← Back to credentials</a>
       </form>
 
+      {% elif step == '2fa' %}
+      <form method="post" action="{{ url_for('signup_verify') }}" class="flex flex-col gap-5" novalidate>
+        <div class="flex flex-col gap-1">
+          <p class="text-[#F0F2F5] font-medium text-sm">Set up two-factor authentication</p>
+          <p class="text-[#8A95A3] text-xs leading-relaxed">
+            Scan this code with <span class="text-[#F0F2F5]">Microsoft Authenticator</span>
+            (or any authenticator app), then enter the 6-digit code it shows for
+            <span class="text-[#F0F2F5]">{{ email }}</span>.
+          </p>
+        </div>
+        <div class="self-center bg-white p-3 rounded-lg shadow-lg">
+          <img src="{{ qr_data }}" alt="QR code to add this account to Microsoft Authenticator" width="176" height="176" class="block w-44 h-44" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-[#8A95A3]">Can't scan? Enter this key</p>
+          <code class="font-mono text-xs text-[#F0F2F5] bg-[#1C2330] border border-[rgba(255,255,255,0.08)] rounded-md px-3 py-2 break-all">{{ secret }}</code>
+        </div>
+        {{ ui.otp_input(errors.otp) }}
+        {{ ui.button('Verify & Create Account', cls='w-full', loading='Creating account…') }}
+        <button type="submit" name="restart" value="1" class="text-xs text-[#8A95A3] hover:text-[#F0F2F5] text-center transition-colors duration-150 cursor-pointer">← Start over</button>
+      </form>
+
       {% elif mode == 'login' %}
       <form method="post" action="{{ url_for('login') }}" class="flex flex-col gap-5" novalidate>
         {{ ui.text_input('Email', 'email', 'email', 'you@example.com', email, errors.email, 'email') }}
-        {{ ui.text_input('Password', 'password', 'password', '••••••••', '', errors.password, 'current-password') }}
+        {{ ui.text_input('Password', 'password', 'password', '••••••••', '', errors.password, 'current-password', 128) }}
         {{ ui.button('Continue', cls='w-full', loading='Checking…') }}
       </form>
 
       {% else %}
       <form method="post" action="{{ url_for('signup') }}" class="flex flex-col gap-5" novalidate>
         {{ ui.text_input('Email', 'email', 'email', 'you@example.com', email, errors.email, 'email') }}
-        {{ ui.text_input('Password', 'password', 'password', 'Min. 8 characters', '', errors.password, 'new-password') }}
-        {{ ui.text_input('Confirm Password', 'confirm', 'password', '••••••••', '', errors.confirm, 'new-password') }}
+        {{ ui.text_input('Password', 'password', 'password', 'At least 8 characters', '', errors.password, 'new-password', 128, 'Use a unique password of 8–128 characters.') }}
+        {{ ui.password_rules() }}
+        {{ ui.text_input('Confirm Password', 'confirm', 'password', '••••••••', '', errors.confirm, 'new-password', 128) }}
         {{ ui.button('Create Account', cls='w-full', loading='Creating account…') }}
       </form>
       {% endif %}

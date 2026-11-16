@@ -1,2 +1,3 @@
 Flask>=3.0
 requests>=2.31
+segno>=1.6

@@ -43,3 +43,24 @@ document.querySelectorAll('[data-otp]').forEach((root) => {
   });
   render();
 });
+
+// Sign-up password requirements light up as the password meets each one.
+const passwordRules = document.querySelector('[data-password-rules]');
+const passwordInput = document.querySelector('input[name="password"]');
+if (passwordRules && passwordInput) {
+  const checks = {
+    length: (v) => v.length >= 8 && v.length <= 128,
+    upper: (v) => /[A-Z]/.test(v),
+    lower: (v) => /[a-z]/.test(v),
+    number: (v) => /\d/.test(v),
+  };
+  const updateRules = () => {
+    passwordRules.querySelectorAll('[data-rule]').forEach((item) => {
+      const met = checks[item.dataset.rule](passwordInput.value);
+      item.style.color = met ? '#4ade80' : '';
+      item.style.opacity = met ? '1' : '0.8';
+    });
+  };
+  passwordInput.addEventListener('input', updateRules);
+  updateRules();
+}
