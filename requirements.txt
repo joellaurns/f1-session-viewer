@@ -1,3 +1,5 @@
 Flask>=3.0
 requests>=2.31
 segno>=1.6
+argon2-cffi>=23.1
+hvac>=2.1
